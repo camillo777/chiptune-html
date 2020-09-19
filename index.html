@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>The HTML5 Heraldd</title>
+  <meta name="description" content="The HTML5 Heraldd">
+  <meta name="author" content="SitePoint">
+  <!--link rel="stylesheet" href="flexy.css">
+  <script src="https://unpkg.com/@vladocar/nanojs@1.0.5/src/nanoJS.min.js"></script-->
+
+<style type="text/css">
+        
+.grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-column-gap: 16px;
+  grid-row-gap: 8px;
+}
+
+/*.grid > div {
+  background-color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  padding: 20px 0;
+  font-size: 30px;
+}*/
+.grid > .nohi {
+  /*border: 2px solid #ffa94d;
+  border-radius: 5px;*/
+  background-color: #ffd8a8;
+  padding: 1em;
+  color: #d9480f;
+}
+.grid > .hi {
+  border: 3px dashed blue;
+  /*background: #0000FF44;*/
+}
+.button {
+  border: 1px green;
+  background: #0000FF44;
+  padding: 1em;
+  margin: 1em;
+}
+.track {
+  font-family: "Courier New"
+}
+        
+    </style>
+    </head>
+    <body onload="init();">
+
+      <div>
+<div class="dp50">50%</div>
+<div class="dp50">50%</div>
+
+<div class="dp33">33,3%</div>
+<div class="dp33">33,3%</div>
+<div class="dp33">33,3%</div>
+</div>
+
+        <div class="grid"></div>
+
+        <div class="button" id="startBtn">start</div>
+        <div class="button" id="stopBtn">stop</div>
+
+        <div onclick="playNoteSynth(audioCtx.currentTime,440,0.3);" class="button">TEST</div>
+
+        <div onclick="play(audioCtx.currentTime,440,'synth');" class="button">Synth</div>
+        <div onclick="play(audioCtx.currentTime,440,'kick');" class="button">Kick</div>
+
+        <div id=div1 contenteditable="true" class="track"></div>
+        <div id=div2 contenteditable="true" class="track"></div>
+        <div id=div3 contenteditable="true" class="track"></div>
+
+<script>
+
+  function rspaces(s){
+    var n = '';
+    for(i=0; i<s.length; i++) {
+      if (s[i]!=' ') n+=s[i];
+    }
+    return n.trim();
+  }
+
+//var beats = [];
+//for(i=0; i<64; i++) beats.push(0);
+        
+const grid = document.getElementsByClassName("grid")[0];
+
+var d1value = rspaces("a0c0b0c0 a0c0b0c0 a0c0b0c0 a0c0b0c0");
+const div1 = document.getElementById("div1");
+div1.innerText = d1value;
+div1.addEventListener("input", function() {
+  d1value = rspaces(div1.innerText);
+  console.log("input event fired");
+}, false);
+
+var d2value = rspaces("abce00Aa 0abce0cA 0000aa00 0000aa00 cdefabcd abce00Aa 0abce0cA 00aaee00");
+const div2 = document.getElementById("div2");
+div2.innerText = d2value;
+div2.addEventListener("input", function() {
+  d2value = rspaces(div2.innerText);
+  //console.log("input event fired: ["+div2.innerText+"]");
+  //console.log("input event fired: ["+d2value+"]");
+}, false);
+
+var d3value = rspaces("00aA00a0 00a000a0 00aA00a0 00a000a0 00c000c0 00c000c0 00c000c0 00e000e0");
+const div3 = document.getElementById("div3");
+div3.innerText = d3value;
+div3.addEventListener("input", function() {
+  d3value = rspaces(div3.innerText);
+  console.log("input event fired");
+}, false);
+
+const rows = 8;
+const cols = 8;
+
+for (let r = 1; r <= rows; r++) {
+    for (let c = 1; c <= cols; c++) {
+        const h = document.createElement("div");
+        var att = document.createAttribute("contenteditable");      
+        att.value = "true";                           
+        h.setAttributeNode(att);     
+        //h.classList.add("nohi");
+        h.innerText = "C";
+        //if (r==1&&c==1) h.style.backgroundColor = "red";
+        //h.style.gridRow = r;
+        //h.style.gridColumn = c;
+        grid.appendChild(h);
+    }
+}
+
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+var BPM = 130;
+var intervalMsecs = 60000/BPM;
+var quarterNote = intervalMsecs/4;
+var index = 0;
+
+
+//let audioContext = new AudioContext();
+  let futureTickTime = audioCtx.currentTime;
+  //let current16thNote = -1;
+
+// (The third argument is optional)
+//var ticker = new AdjustingInterval(doWork, quarterNote);
+//ticker.start();
+
+var mixGain = audioCtx.createGain();
+var filterGain = audioCtx.createGain();
+
+
+/**
+ * Self-adjusting interval to account for drifting
+ * 
+ * @param {function} workFunc  Callback containing the work to be done
+ *                             for each interval
+ * @param {int}      interval  Interval speed (in milliseconds) - This 
+ * @param {function} errorFunc (Optional) Callback to run if the drift
+ *                             exceeds interval
+ */
+ function AdjustingInterval(workFunc, interval, errorFunc) {
+    var that = this;
+    var expected, timeout;
+    this.interval = interval;
+
+    this.start = function() {
+        expected = Date.now() + this.interval;
+        timeout = setTimeout(step, this.interval);
+    }
+
+    this.stop = function() {
+        clearTimeout(timeout);
+    }
+
+    function step() {
+        var drift = Date.now() - expected;
+        if (drift > that.interval) {
+            // You could have some default stuff here too...
+            if (errorFunc) errorFunc();
+        }
+        workFunc();
+        expected += that.interval;
+        timeout = setTimeout(step, Math.max(0, that.interval-drift));
+    }
+}
+
+function getNote(ch) {
+  switch(ch){
+    case 97: return 440.00; // a
+    case 98: return 493.88; // b
+    case 99: return 523.25; // c 
+    case 100: return 587.33; // d
+    case 101: return 659.25; // e
+    case 102: return 698.46; // f
+    case 103: return 783.99; // g
+    case 65: return 880.00; // A
+    case 66: return 987.77; // B
+    case 67: return 1046.50; // C
+    case 68: return 1174.66; // D
+    case 69: return 1318.51; // E
+    case 70: return 1396.91; // F
+    case 71: return 1567.98; // G
+  }
+  throw "Note not found: "+ch;
+}
+function getNoteBass(ch) {
+  switch(ch){
+    case 97: return 110.00; // a
+    case 98: return 123.47; // b
+    case 99: return 130.81; // c 
+    case 100: return 146.83; // d
+    case 101: return 164.81; // e
+    case 102: return 174.61; // f
+    case 103: return 196.00; // g
+    case 65: return 220.00; // A
+    case 66: return 246.94; // B
+    case 67: return 261.63; // C
+    case 68: return 293.66; // D
+    case 69: return 329.63; // E
+    case 70: return 349.23; // F
+    case 71: return 392.00; // G
+  } 
+  throw "Note not found: "+ch;
+}
+
+const percussions = {
+    KICK: 'kick',
+    SNARE: 'snare',
+    HIHAT: 'hihat',
+    NOSOUND: 'no'
+}
+const instr = {
+    KICK: 'kick',
+    SNARE: 'snare',
+    HIHAT: 'hihat',
+    SYNTH: 'synth',
+    BASS: 'bass'
+}
+function getCurrentNotePercussions() {
+  var d1 = d1value; //div1.innerText;
+  //console.log(d1value);
+  if (d1.length<=0) return percussions.NOSOUND;
+  ch = d1.charCodeAt(index%(d1.length));
+  if (ch==48)return percussions.NOSOUND;
+  if (ch==97)return percussions.KICK;
+  if (ch==98)return percussions.SNARE;
+  if (ch==99)return percussions.HIHAT;
+}
+function getCurrentNoteSynth() {
+  var d2 = d2value; //div2.innerText;
+  if (d2.length<=0) return -1;
+  ch = d2.charCodeAt(index%(d2.length));
+  if (ch==48) return -1;
+  //f = 440*1.06**(-105+ch);
+  f = getNote(ch);
+  //f = 440*(ch-65);
+  //console.log(index%i2.value.length +' ' +index + ' ' + ch + ' ' + f);
+  //playNoteSynth(t, f,.3);
+  return f;
+}
+function getCurrentNoteBass() {
+  var d3 = d3value; //div2.innerText;
+  if (d3.length<=0) return -1;
+  ch = d3.charCodeAt(index%(d3.length));
+  if (ch==48) return -1;
+  //f = 440*1.06**(-105+ch);
+  f = getNoteBass(ch);
+  //f = 440*(ch-65);
+  //console.log(index%i2.value.length +' ' +index + ' ' + ch + ' ' + f);
+  //playNoteSynth(t, f,.3);
+  return f;
+}
+
+// Define the work to be done
+var doWork = function() {
+
+  //console.log(++justSomeNumber);
+    //console.log(grid.childNodes.length);
+    //grid.childNodes[index].classList.remove('hi');
+    //grid.childNodes[index].classList.add('nohi');
+    //grid.childNodes[index].classList.toggle('hi');
+    /*if (index!=-1)
+      grid.childNodes[index%64].style.backgroundColor = "transparent";*/
+    index++;
+
+    //if (index>=64) index-=64;
+
+  var ch = '';
+  var f = 0;
+
+  var t = audioCtx.currentTime;
+
+  var d1 = d1value; //div1.innerText;
+  //console.log(d1value);
+  if (d1.length>0){
+  ch = d1.charCodeAt(index%(d1.length));
+  /*if (ch == 32){
+    index++;
+    ch = d1.charCodeAt(index%(d1.length));
+  }*/
+  if (ch!=48){
+  //f = 440*1.06**(-105+ch);
+  //console.log(f);
+  //playNoteKick(t, 300,.3);
+    if (ch==97)play(t,300,"kick");
+    if (ch==98)play(t,300,"snare");
+    if (ch==99)play(t,300,"hihat");
+  }
+  }
+
+  var d2 = d2value; //div2.innerText;
+  if (d2.length>0){
+  ch = d2.charCodeAt(index%(d2.length));
+  if (ch!=48){
+  //f = 440*1.06**(-105+ch);
+  f = getNote(ch);
+  //f = 440*(ch-65);
+  //console.log(index%i2.value.length +' ' +index + ' ' + ch + ' ' + f);
+  //playNoteSynth(t, f,.3);
+  play(t,f,"synth");
+  }
+  }
+
+  var d3 = d3value; //div3.innerText;
+  if (d3.length>0){
+  ch = d3.charCodeAt(index%(d3.length));
+  if (ch!=48){
+  //f = 220*1.06**(-105+ch);
+  f = getNoteBass(ch);
+  //f = 440*(ch-65);
+  //console.log(index%i3.value.length +' ' +index + ' ' + ch + ' ' + f);
+  //playNoteSynth(t, f,.3);
+  play(t,f,"bass");
+  }
+  }
+
+    
+    /*grid.childNodes[index%64].style.backgroundColor = "red";*/
+    //grid.childNodes[index].classList.toggle('hi');
+    
+    //grid.childNodes[index].classList.remove('nohi');
+    //grid.childNodes[index].classList.add('hi');
+};
+
+// Define what to do if something goes wrong
+var doError = function() {
+    console.warn('The drift exceeded the interval.');
+};
+
+
+//var G = audioCtx.createGain();
+//G.gain.value = 0.05;
+//G.setValueAtTime(.5,i*I+.3),
+//G.setTargetAtTime(.001,i*I+.3+.1,.05),
+
+// value in hertz
+//G.connect(audioCtx.destination);
+
+function play(t,f,instrument){
+  // synth
+  if (instrument==instr.SYNTH)
+  playNote(t,f,0.2,.01,0,0.2,.5,.1,.05,"square");
+  // bass
+  if (instrument==instr.BASS)
+  playNote(t,f,0.5,.01,0,0.2,.5,.1,.05,"sawtooth"); // triangle
+  // kick
+  if (instrument==instr.KICK)
+  playNote(t,300,0.3,.01,0,.2,.25,.8,.5,"sine",50,.05);
+  if (instrument==instr.SNARE)
+  snare();
+  if (instrument==instr.HIHAT)
+  hihat2();
+}
+
+// kick
+function playNoteKick(t,f,l){
+  var attackGain = .8;
+  var attackTime = .01;
+
+  var decayTime = 0;
+  var sustainGain = .5;
+  var sustainTime = .2;
+  var releaseTime = .25;
+
+  var start = 0.0001;
+  //var t = audioCtx.currentTime;
+
+  var G = audioCtx.createGain();
+  //G.gain.value = 0.05;
+  G.connect(audioCtx.destination);
+
+  var O = audioCtx.createOscillator();
+  O.type = 'sine';
+  O.frequency.setValueAtTime(f, t+start); // 300
+  //O.frequency.setTargetAtTime(50, t+start+.1, .05);
+  O.frequency.exponentialRampToValueAtTime(50, t+start+.2);
+  // attach
+  // start at t+start with gain at .1
+  G.gain.setValueAtTime(.01, t+start);
+  // then start attach to reach .5 at t+start+.05 
+  G.gain.exponentialRampToValueAtTime(attackGain, t+start+attackTime);
+
+  if (decayTime != 0) {
+    G.gain.exponentialRampToValueAtTime(sustainGain, t+start+decayTime);
+  }
+  //G.gain.setTargetAtTime(.5,t+start,1);
+  // sustain
+  G.gain.setValueAtTime(sustainGain, t+start+sustainTime);
+  // release
+  G.gain.exponentialRampToValueAtTime(0.01, t+start+releaseTime);
+  //G.gain.setTargetAtTime(.001, t+start+.1, .05);
+  O.connect(G);
+  O.start(t+start);
+  O.stop(t+start+l);
+}
+
+function playNoteSynth(t,f,l){
+  l = 0.5;
+
+  var attackGain = .1;
+  var attackTime = .01*l;
+
+  var decayTime = 0*l;
+  var sustainGain = .05*l;
+  var sustainTime = .2*l;
+  var releaseTime = .5*l;
+
+  if (decayTime == 0) sustainGain = attackGain;
+
+  var start = t + 0.0001;
+  var minGain = .0001;
+  //var t = audioCtx.currentTime;
+
+  var G = audioCtx.createGain();
+  //G.gain.value = 0.05;
+  G.connect(audioCtx.destination);
+
+  var O = audioCtx.createOscillator();
+  O.type = 'square';
+  O.frequency.setValueAtTime(f, start); // 1000
+  
+  //O.frequency.setTargetAtTime(50, t+start+.1, .05);
+//  O.frequency.exponentialRampToValueAtTime(50, t+start+.2);
+  // attach
+  // start at t+start with gain at .1
+  G.gain.setValueAtTime(minGain, start);
+
+  // then start attach to reach .5 at t+start+.05 
+  // start at previous time and end at ...
+  G.gain.exponentialRampToValueAtTime(attackGain, start+attackTime);
+
+  if (decayTime != 0) {
+    G.gain.exponentialRampToValueAtTime(sustainGain, start+attackTime+decayTime);
+  }
+  //G.gain.setTargetAtTime(.5,t+start,1);
+  // sustain
+  G.gain.setValueAtTime(sustainGain, start+attackTime+decayTime+sustainTime);
+  // release
+  
+  G.gain.exponentialRampToValueAtTime(minGain, start+attackTime+decayTime+sustainTime+releaseTime);
+  //G.gain.setTargetAtTime(.001, t+start+.1, .05);
+  
+
+  O.connect(G);
+  O.start(start);
+  O.stop(start+l);
+}
+
+function playNote(t,f,l,at,dt,st,rt,ag,sg,wave,fs=0,fst=0){
+  //l = 10;
+
+  var attackGain = ag;
+  var attackTime = at*l;
+
+  var decayTime = dt*l;
+  if (decayTime == 0) sg = 1;
+  
+  var sustainGain = sg*ag;
+  var sustainTime = st*l;
+  var releaseTime = rt*l;
+
+  var start = t + .0001;
+  var minGain = .0001;
+  //var t = audioCtx.currentTime;
+
+  var G = audioCtx.createGain();
+  //G.gain.value = 0.05;
+  G.connect(audioCtx.destination);
+
+  var O = audioCtx.createOscillator();
+  O.type = wave;
+  O.frequency.setValueAtTime(f, start); // 1000
+
+  if (fs!=0&&fst!=0)
+    O.frequency.exponentialRampToValueAtTime(fs, start+fst);
+
+  //O.frequency.setTargetAtTime(50, t+start+.1, .05);
+//  O.frequency.exponentialRampToValueAtTime(50, t+start+.2);
+  // attach
+  // start at t+start with gain at .1
+  G.gain.setValueAtTime(minGain, start);
+
+  // then start attach to reach .5 at t+start+.05 
+  // start at previous time and end at ...
+  G.gain.exponentialRampToValueAtTime(attackGain, start+attackTime);
+
+  if (decayTime != 0) {
+    G.gain.exponentialRampToValueAtTime(sustainGain, start+attackTime+decayTime);
+  }
+  //G.gain.setTargetAtTime(.5,t+start,1);
+  // sustain
+  G.gain.setValueAtTime(sustainGain, start+attackTime+decayTime+sustainTime);
+  // release
+  
+  G.gain.exponentialRampToValueAtTime(minGain, start+attackTime+decayTime+sustainTime+releaseTime);
+  //G.gain.setTargetAtTime(.001, t+start+.1, .05);
+  
+
+  O.connect(G);
+  O.start(start);
+  O.stop(start+l);
+}
+
+function snare() {
+
+/*var osc3 = audioCtx.createOscillator();
+var gainOsc3 = audioCtx.createGain();*/
+
+filterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+filterGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+/*osc3.type = "triangle";
+osc3.frequency.value = 100;
+gainOsc3.gain.value = 0;
+
+gainOsc3.gain.setValueAtTime(0, audioCtx.currentTime);
+gainOsc3.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+osc3.connect(gainOsc3);
+gainOsc3.connect(mixGain);
+
+mixGain.gain.value = 1;
+
+osc3.start(audioCtx.currentTime);
+osc3.stop(audioCtx.currentTime + 0.2);*/
+
+var node = audioCtx.createBufferSource(),
+    buffer = audioCtx.createBuffer(1, 4096, audioCtx.sampleRate),
+    data = buffer.getChannelData(0);
+
+var filter = audioCtx.createBiquadFilter();
+filter.type = "highpass";
+filter.frequency.setValueAtTime(100, audioCtx.currentTime);
+filter.frequency.linearRampToValueAtTime(1000, audioCtx.currentTime + 0.2);
+
+
+for (var i = 0; i < 4096; i++) {
+    data[i] = Math.random();
+}
+node.buffer = buffer;
+node.loop = true;
+node.connect(filter);
+filter.connect(filterGain);
+//filterGain.connect(mixGain);
+filterGain.connect(audioCtx.destination);
+
+node.start(audioCtx.currentTime);
+node.stop(audioCtx.currentTime + 0.2);
+
+};
+
+function hihat2() {
+
+/*var osc3 = audioCtx.createOscillator();
+var gainOsc3 = audioCtx.createGain();*/
+
+filterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+filterGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+/*osc3.type = "triangle";
+osc3.frequency.value = 100;
+gainOsc3.gain.value = 0;
+
+gainOsc3.gain.setValueAtTime(0, audioCtx.currentTime);
+gainOsc3.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+osc3.connect(gainOsc3);
+gainOsc3.connect(mixGain);
+
+mixGain.gain.value = 1;
+
+osc3.start(audioCtx.currentTime);
+osc3.stop(audioCtx.currentTime + 0.2);*/
+
+var node = audioCtx.createBufferSource(),
+    buffer = audioCtx.createBuffer(1, 4096, audioCtx.sampleRate),
+    data = buffer.getChannelData(0);
+
+var filter = audioCtx.createBiquadFilter();
+filter.type = "highpass";
+filter.frequency.setValueAtTime(100, audioCtx.currentTime);
+filter.frequency.linearRampToValueAtTime(5000, audioCtx.currentTime + 0.2);
+
+
+for (var i = 0; i < 4096; i++) {
+    data[i] = Math.random();
+}
+node.buffer = buffer;
+node.loop = true;
+node.connect(filter);
+filter.connect(filterGain);
+//filterGain.connect(mixGain);
+filterGain.connect(audioCtx.destination);
+
+node.start(audioCtx.currentTime);
+node.stop(audioCtx.currentTime + 0.01);
+
+};
+
+function hihat() {
+
+var gainOsc4 = audioCtx.createGain();
+var fundamental = 40;
+var ratios = [2, 3, 4.16, 5.43, 6.79, 8.21];
+
+var bandpass = audioCtx.createBiquadFilter();
+bandpass.type = "bandpass";
+bandpass.frequency.value = 10000;
+
+var highpass = audioCtx.createBiquadFilter();
+highpass.type = "highpass";
+highpass.frequency.value = 7000;
+
+
+ratios.forEach(function(ratio) {
+
+    var osc4 = audioCtx.createOscillator();
+    osc4.type = "square";
+    osc4.frequency.value = fundamental * ratio;
+    osc4.connect(bandpass);
+
+    osc4.start(audioCtx.currentTime);
+    osc4.stop(audioCtx.currentTime + 0.05);
+    
+});
+
+gainOsc4.gain.setValueAtTime(1, audioCtx.currentTime);
+gainOsc4.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+
+bandpass.connect(highpass);
+highpass.connect(gainOsc4);
+gainOsc4.connect(mixGain);
+
+mixGain.gain.value = 1;
+
+};
+        
+/*
+P = D => {
+  if(!D)return;           
+  // D = melody string (a-z + 0 for silence)
+  I=+len.value;           
+  // I = note length in seconds
+  with(new AudioContext)
+  with(G=createGain())
+  for(i=0;i<D.length;i++)
+  with(createOscillator())
+  if(D[i=+i]&&D[i]!="0")
+  connect(G),
+  G.connect(destination),
+  start(i*I+.3),
+  frequency.setValueAtTime(440*1.06**(-105+D.charCodeAt(i)),i*I+.3),
+  type='sine',            // or triangle or square or sawtooth
+  gain.setValueAtTime(.5,i*I+.3),
+  gain.setTargetAtTime(.001,i*I+.3+.1,.05),
+  stop(i*I+.3+I-.01);
+}
+*/
+
+// 1. Create constructor function
+function User(name) {
+  this.name = name;
+}
+// a function prototype has "constructor" property by default,
+// so we don't need to create it
+
+// 2. Add the method to prototype
+User.prototype.sayHi = function() {
+  alert(this.name);
+};
+
+  function scheduleNote(beatDivisionNumber, time) {
+
+    var perc = getCurrentNotePercussions();
+    switch(perc){
+      case percussions.NOSOUND: 
+      break;
+      case percussions.KICK:
+      play(time,300,instr.KICK);
+      break;
+      case percussions.SNARE:
+      play(time,300,instr.SNARE);
+      break;
+      case percussions.HIHAT:
+      play(time,300,instr.HIHAT);
+      break;
+    }
+
+    var fsynth = getCurrentNoteSynth();
+    if (fsynth!=-1){
+      play(time,fsynth,instr.SYNTH);
+    }
+
+    var fbass = getCurrentNoteBass();
+    if (fbass!=-1){
+      play(time,fbass,instr.BASS);
+    }
+
+/*    if (current16thNote) {
+      var currentKickDiv = kickDivs[current16thNote - 1];
+      var currentSnareDiv = snareDivs[current16thNote - 1];
+      var currentHihatDiv = hihatDivs[current16thNote - 1];
+      var currentGrainDiv = grainDivs[current16thNote - 1];
+
+      if (currentSnareDiv.style.backgroundColor == "lightskyblue") {
+        snare(time);
+      };
+
+      if (currentKickDiv.style.backgroundColor == "pink") {
+        kick(time);
+      };
+
+      if (currentHihatDiv.style.backgroundColor == "lightgreen") {
+        hihat(time);
+      };
+
+      if (currentGrainDiv.style.backgroundColor == "lightslategray") {
+        grain(time);
+      };
+
+      nextDiv.kickCount(kicks);
+      nextDiv.snareCount(snares);
+      nextDiv.hihatCount(hihats);
+      nextDiv.grainCount(grains);
+    };
+  */
+
+  };
+
+  function futureTick() {
+    var secondsPerBeat = 60.0 / BPM;
+    futureTickTime += 0.25 * secondsPerBeat; // "future note"
+    //current16thNote++ % 32;
+    index++ % 32;
+    /*if (current16thNote > 16) {
+      current16thNote = 1;
+    }*/
+  };
+
+  function scheduler() {
+    while (futureTickTime < audioCtx.currentTime + 0.1) {
+      scheduleNote(/*current16thNote*/ index, futureTickTime);
+      futureTick();
+    }
+    timerID = window.setTimeout(scheduler, 50.0);
+  };
+
+startBtn.addEventListener('click', function(time) {
+  audioCtx.resume();
+    scheduler();
+
+    //ticker.start();
+
+  }, false);
+
+  stopBtn.addEventListener('click', function() {
+
+    clearTimeout(timerID);
+
+    //ticker.stop();
+    //index=-1;
+
+  }, false);
+
+function init() {
+      console.log("init() successfully called.");
+    }
+        </script>
+    </body>
+</html>

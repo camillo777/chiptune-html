@@ -19,16 +19,13 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-      
       - name: Blazing fast GitHub Pages deploys
         # You may pin to the exact commit or the version.
         # uses: alex-page/blazing-fast-gh-pages-deploy@cd954d31df85a309bb5aa4a0a67cc2ac3512d722
         uses: alex-page/blazing-fast-gh-pages-deploy@v1.1.0
         with:
           # The personal access token secret can be passed in using {{ secrets.GH_PAT }}
-          #repo-token: {{ secrets.GH_PAT }}
+          repo-token: GHPAGES
           # The directory for the built website
           site-directory: . # default is _site
           # The branch to deploy the built website to

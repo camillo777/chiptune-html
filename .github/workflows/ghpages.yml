@@ -27,7 +27,7 @@ jobs:
           # The personal access token secret can be passed in using {{ secrets.GH_PAT }}
           repo-token: GHPAGES
           # The directory for the built website
-          site-directory: / # default is _site
+          site-directory: ./ # default is _site
           # The branch to deploy the built website to
           #deploy-branch: # default is gh-pages
           # The commit message for the branch

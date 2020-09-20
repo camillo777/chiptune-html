@@ -31,7 +31,7 @@ jobs:
         run: |
           rm -rf target
           git clone https://.:${{ secrets.GITHUB_TOKEN }}@github.com/camillo777/chiptune-html target
-          cp source\files target
+          cp source\*.html target
           git add target
           git commit -m "Automatic publish from github.com/project"
           git push target master

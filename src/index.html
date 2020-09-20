@@ -521,6 +521,10 @@ function playNote(t,f,l,at,dt,st,rt,ag,sg,wave,fs=0,fst=0){
   O.stop(start+l);
 }
 
+var noise = [];
+for (var i = 0; i < 4096; i++) {
+    noise[i] = Math.random();
+}
 function snare() {
 
 /*var osc3 = audioCtx.createOscillator();
@@ -553,10 +557,11 @@ filter.type = "highpass";
 filter.frequency.setValueAtTime(100, audioCtx.currentTime);
 filter.frequency.linearRampToValueAtTime(1000, audioCtx.currentTime + 0.2);
 
+data = noise;
 
-for (var i = 0; i < 4096; i++) {
+/*for (var i = 0; i < 4096; i++) {
     data[i] = Math.random();
-}
+}*/
 node.buffer = buffer;
 node.loop = true;
 node.connect(filter);

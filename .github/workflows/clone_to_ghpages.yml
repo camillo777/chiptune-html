@@ -39,10 +39,7 @@ jobs:
 
       - name: copy master branch to gh-pages branch
         run: |
-          #rm -rf gh-pages
-          #git add gh-pages
           git checkout gh-pages
-          #git checkout master -- .
           git checkout master -- *.html
           git commit -m 'copy files from branchA to branchB'
 

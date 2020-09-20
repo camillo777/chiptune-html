@@ -20,20 +20,31 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      #- uses: actions/checkout@v2
+      - uses: actions/checkout@master
 
       # Runs a single command using the runners shell
       #- name: Run a one-line script
       #  run: echo Hello, world!
 
-      - name: copy master branch to gh-pages branch
-        run: |
-          rm -rf gh-pages
-          git add gh-pages
-          git checkout gh-pages
+      #- uses: actions/checkout@master
+
+      - name: Deploy
+        uses: s0/git-publish-subdir-action@develop
+        env:
+          REPO: self
+          BRANCH: gh-pages
+          FOLDER: public/
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+      #- name: copy master branch to gh-pages branch
+      #  run: |
+      #    rm -rf gh-pages
+      #    git add gh-pages
+      #    git checkout gh-pages
           #git checkout master -- .
-          git checkout master -- *.html
-          git commit -m 'copy files from branchA to branchB'
+      #    git checkout master -- *.html
+      #    git commit -m 'copy files from branchA to branchB'
 
       # Runs a set of commands using the runners shell
       #- name: Run a multi-line script

@@ -20,7 +20,8 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      #- uses: actions/checkout@master
+      - uses: actions/checkout@master
+      - uses: actions/checkout@gh-pages
 
       # Runs a single command using the runners shell
       #- name: Run a one-line script
@@ -39,7 +40,10 @@ jobs:
 
       - name: copy master branch to gh-pages branch
         run: |
+          #rm -rf gh-pages
+          #git add gh-pages
           git checkout gh-pages
+          #git checkout master -- .
           git checkout master -- *.html
           git commit -m 'copy files from branchA to branchB'
 

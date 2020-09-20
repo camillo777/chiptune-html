@@ -26,12 +26,19 @@ jobs:
       #- name: Run a one-line script
       #  run: echo Hello, world!
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: copy master branch to gh-pages branch
         run: |
-          rm -rf target
-          git clone https://.:${{ secrets.GITHUB_TOKEN }}@github.com/camillo777/chiptune-html target
-          cp source/*.html target
-          git add target
-          git commit -m "Automatic publish from github.com/project"
-          git push target master
+          git checkout gh-pages
+          #git checkout master -- .
+          git checkout master -- *.html
+          git commit -m 'copy files from branchA to branchB'
+
+      # Runs a set of commands using the runners shell
+      #- name: Run a multi-line script
+      #  run: |
+      #    rm -rf target
+      #    git clone https://.:${{ secrets.GITHUB_TOKEN }}@github.com/camillo777/chiptune-html target
+      #    cp source/*.html target
+      #    git add target
+      #    git commit -m "Automatic publish from github.com/project"
+      #    git push target master

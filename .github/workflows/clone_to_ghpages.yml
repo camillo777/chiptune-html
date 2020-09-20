@@ -39,6 +39,7 @@ jobs:
 
       - name: copy master branch to gh-pages branch
         run: |
+          git fetch
           git checkout gh-pages
           git checkout master -- *.html
           git commit -m 'copy files from branchA to branchB'
